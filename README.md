@@ -72,10 +72,19 @@ Unlike typical quality gates, this VERIFIER additionally checks for **scope boun
 
 ## 사용법 / Usage
 
-1. `CLAUDE.md`를 프로젝트 루트에 놓는다 / Place `CLAUDE.md` at the project root
-2. Claude Code를 실행한다 / Run Claude Code
-3. 자연어로 태스크를 입력한다 / Enter your task in natural language
-4. 하네스가 자동으로 PHASE -1 → 3을 실행한다 / The harness runs PHASE -1 through 3 automatically
+프로젝트 루트에서 아래 명령어 한 줄로 설치한다.
+
+Run this one-liner in your project root:
+
+```bash
+curl -o CLAUDE.md https://raw.githubusercontent.com/ERUTCEL/dynamic-harness-system/main/CLAUDE.md
+```
+
+그 다음 / Then:
+
+1. Claude Code를 실행한다 / Run Claude Code
+2. 자연어로 태스크를 입력한다 / Enter your task in natural language
+3. 하네스가 자동으로 PHASE -1 → 3을 실행한다 / The harness runs PHASE -1 through 3 automatically
 
 ---
 

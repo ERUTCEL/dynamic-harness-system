@@ -152,12 +152,13 @@ No extra configuration. One file, plug and play.
 
 ## 설계 원칙 / Design Principles
 
-| 결정 / Decision | 이유 / Reason |
+| 원리 / Principle | 이유 / Reason |
 |---|---|
-| PARSER를 앞에 둔다 / PARSER runs first | 자연어는 에이전트마다 다르게 해석된다. 한 번만 해석하고 이후엔 구조화된 값만 쓴다 / Natural language is interpreted differently by each agent. Parse once, use structured values after |
-| OUT을 필드:값으로 강제 / OUT forced to field:value | 자연어 요약은 전달 과정에서 의미가 손실된다. 숫자와 열거형은 손실이 없다 / Prose summaries lose meaning in transit. Numbers and enums don't |
-| "판단하지 않을 것" 명시 / Must-NOT declared | 경계가 없으면 에이전트가 서로 침범하거나 아무도 안 하는 영역이 생긴다 / Without boundaries, agents overlap or leave blind spots |
-| VERIFIER 조건부 스킵 / VERIFIER conditionally skipped | 단일 실행 태스크에 검증 레이어는 토큰 낭비다 / A verification layer on single-agent tasks wastes tokens |
+| 먼저 구조화한다 / Structure first | 자연어는 단계마다 다르게 읽힌다. 의도를 한 번 고정하고 이후엔 그 값만 쓴다 / Natural language shifts at every step. Fix the intent once and use only that |
+| 역할에 경계를 준다 / Bound every role | "안 할 것"이 없으면 역할들이 침범하거나 아무도 안 하는 영역이 생긴다 / Without must-NOT, roles overlap or leave blind spots |
+| 필드로 대화한다 / Talk in fields | 자연어 요약은 전달 과정에서 의미를 잃는다. 숫자와 열거형은 잃지 않는다 / Prose loses meaning in transit. Numbers and enums don't |
+| 막히면 접근을 바꾼다 / Change approach, not retry | 같은 방식으로 재시도하면 같은 결과가 나온다 / Retrying the same way produces the same result |
+| 단순한 건 단순하게 / Simple stays simple | 구조를 위한 구조는 낭비다 / Structure for its own sake is waste |
 
 ---
 

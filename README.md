@@ -1,72 +1,131 @@
-# Dynamic Harness System (동적 하네스 시스템)
+# Dynamic Harness System
 
-> A CLAUDE.md-based multi-agent harness that converts natural language into structured representations before execution — reducing ambiguity loss and inter-agent boundary violations. Supports conditional PARSER skip and VERIFIER skip for token efficiency.
+> A `CLAUDE.md` for Claude Code that eliminates the #1 cause of bad multi-agent output — ambiguous natural language passed directly between agents.
 
-> 자연어를 구조화 표현으로 변환한 뒤 실행하는 CLAUDE.md 기반 멀티에이전트 하네스. 모호성 손실과 에이전트 간 경계 침범을 줄이는 것이 핵심 목표. PARSER 조건부 스킵과 VERIFIER 스킵으로 토큰 효율화 지원.
-
----
-
-## 배경 / Background
-
-대부분의 멀티에이전트 하네스는 두 가지 문제를 가지고 있다.
-
-1. **자연어 통신** — 에이전트 간 결과를 자연어로 주고받을 때 의미 손실이 발생한다
-2. **역할 정의 부재** — 역할 이름만 있고 경계가 없으면 에이전트가 서로 침범하거나 아무도 처리하지 않는 영역이 생긴다
-
-Most multi-agent harnesses share two failure modes:
-
-1. **Natural language handoff** — passing results between agents as prose causes semantic loss
-2. **Undefined role boundaries** — naming a role without defining what it must NOT do leads to scope overlap or blind spots
+> Claude Code용 `CLAUDE.md`. 멀티에이전트 출력 품질을 떨어뜨리는 가장 큰 원인 — 모호한 자연어가 에이전트에 그대로 전달되는 것 — 을 구조로 차단한다.
 
 ---
 
-## 구조 / Architecture
+## 이걸 왜 써야 하나 / Why This Exists
+
+Claude Code로 복잡한 작업을 시킬 때 이런 일이 생긴다.  
+When running complex tasks with Claude Code, these problems appear.
+
+**상황 1 — 에이전트가 서로 다른 걸 이해함**  
+**Case 1 — Agents interpret the same input differently**
 
 ```
-자연어 입력 / Natural Language Input
+입력 / Input: "이 코드 성능 좋게 해줘" / "Make this code faster"
+
+에이전트 A (진단) / Agent A (Diagnosis): 메모리 기준으로 분석 / analyzes by memory
+에이전트 B (처방) / Agent B (Fix):      실행속도 기준으로 개선안 작성 / writes fix by execution speed
+→ 진단과 처방이 서로 다른 기준 / Diagnosis and fix use different criteria
+→ 결과가 어긋남 / Output is misaligned
+```
+
+**상황 2 — 아무도 안 하는 영역이 생김**  
+**Case 2 — Blind spots appear between agents**
+
+```
+역할 / Roles: "분석가" / "Analyst", "개선 담당" / "Fixer"
+→ 경계가 없으니 둘 다 분석만 함 / No boundary — both just analyze
+→ 실제 개선안은 아무도 안 씀 / Nobody writes the actual fix
+```
+
+**상황 3 — 재시도가 반복됨**  
+**Case 3 — Retries pile up**
+
+```
+모호한 입력 → 잘못된 방향 실행 → 재시도
+Ambiguous input → wrong execution → retry
+→ 토큰 2배, 시간 2배 / 2x tokens, 2x time
+```
+
+이 하네스는 이 세 가지를 구조로 차단한다.  
+This harness blocks all three structurally.
+
+---
+
+## 어떻게 작동하나 / How It Works
+
+자연어가 에이전트에 직접 들어가는 걸 막는다.  
+Prevents natural language from entering agents directly.
+
+```
+기존 방식 / Before:
+"코드 빠르게 해줘" → Agent A → Agent B → 결과
+                      (각자 해석)  (각자 해석)
+"Make it faster"  → Agent A → Agent B → output
+                    (own interp.) (own interp.)
+
+이 하네스 / This harness:
+"코드 빠르게 해줘" / "Make it faster"
     ↓
-PHASE -1 : PARSER       — 자연어 → 구조화 표현 (조건부 스킵) / NL → Structured Representation (conditional skip)
+PARSER: "빠르게" = 실행속도로 확정 / "faster" = execution speed, locked
     ↓
-PHASE  0 : META AGENT   — 하네스 설계 + 토큰 최적화 경로 결정 / Harness Design + Token-efficient Path Selection
+Agent A: intent=최적화, scope=실행속도 (고정값 / fixed value)
     ↓
-PHASE  1 : EXECUTORS    — 필드:값 통신, OUT 필드 최소화 / Field:Value Only, Minimal OUT Fields
+Agent B: bottleneck=line23:O(n²) (필드:값 / field:value, not prose)
     ↓
-PHASE  2 : VERIFIER     — 분기 YES일 때만 실행 / Runs Only When Branching
-    ↓
-PHASE  3 : SYNTHESIZER  — 최종 출력 / Final Output
+결과 / Output
+```
+
+모든 에이전트가 동일한 구조화된 표현을 공유한다.  
+All agents share the same structured representation.
+
+---
+
+## 실제로 뭐가 달라지나 / What Actually Changes
+
+**역할 정의가 바뀐다 / Role definition changes**
+
+```
+기존 / Before:
+  - "데이터 분석가" / "Data Analyst"
+  - "개선 담당자" / "Fixer"
+
+이 하네스 / This harness:
+  - WHO : 데이터를 정적으로 읽는 분석가 / Analyst who reads data statically
+  - WHAT: 패턴 식별만 / 개선안은 판단하지 않음
+          Pattern identification only / Must NOT suggest fixes
+  - OUT : severity: HIGH/MID/LOW, pattern: {field:value}
+```
+
+**에이전트 간 통신이 바뀐다 / Inter-agent communication changes**
+
+```
+기존 / Before:
+  "외인 매도세가 강하게 나타나고 있으며 거래량도 높음"
+  "Foreign selling pressure is strong with elevated volume"
+
+이 하네스 / This harness:
+  foreign_flow: -284.7B KRW, volume_ratio: 1.34, trend: DOWN
+```
+
+자연어 요약 대신 필드:값. 다음 에이전트가 재해석할 여지가 없다.  
+Field:value instead of prose. No room for reinterpretation.
+
+**불필요한 페이즈를 건너뛴다 / Unnecessary phases are skipped**
+
+```
+단순 질문 / Simple query  → PARSER 스킵 + VERIFIER 스킵 → 최소 경로 / minimal path
+복잡한 작업 / Complex task → 풀 실행 / full execution
 ```
 
 ---
 
-## 핵심 설계 원칙 / Key Design Principles
+## 누가 쓰면 좋나 / Who Should Use This
 
-### 1. PARSER — 자연어 모호성 제거 / Ambiguity Elimination
+Claude Code로 이런 작업을 반복하는 사람:  
+Anyone using Claude Code for tasks like these:
 
-자연어 입력을 INTENT / OBJECT / CONSTRAINT / AMBIGUITY / STRUCT 필드로 분해한다. AMBIGUITY가 있으면 임의 해석 없이 RESOLVED에 근거를 명시한다. 이후 모든 페이즈는 RAW가 아닌 STRUCT만 참조한다.
+- 코드베이스 분석 후 리팩토링 / Codebase analysis and refactoring
+- 데이터 수집 → 분석 → 판단 파이프라인 / Data collection → analysis → decision pipeline
+- 문서 파싱 → 구조화 → 출력 변환 / Document parsing → structuring → output transformation
+- 여러 관점의 검토가 필요한 의사결정 / Decisions requiring multiple perspectives
 
-Decomposes natural language into INTENT / OBJECT / CONSTRAINT / AMBIGUITY / STRUCT. When ambiguity exists, the chosen interpretation and its rationale are recorded in RESOLVED. All subsequent phases reference STRUCT only — never RAW.
-
-### 2. META AGENT — 역할 계약 3분할 / Three-Part Role Contract
-
-에이전트를 역할명으로만 정의하지 않는다. 모든 에이전트는 세 가지를 반드시 명시한다.
-
-Agents are never defined by name alone. Every agent must declare three things:
-
-- **WHO** : 이 에이전트가 가진 관점 / The perspective this agent holds
-- **WHAT** : 판단할 수 있는 것 **/** 판단하지 않을 것 / What it will decide **/** What it must not decide
-- **OUT** : 다음 에이전트에게 넘기는 필드와 형식 / Fields and format passed to the next agent
-
-### 3. EXECUTORS — RAW 참조 금지 / No RAW Reference
-
-PHASE 1 이후 원래 자연어(RAW)를 다시 참조하지 않는다. 입력은 이전 에이전트의 OUT 필드 또는 PARSER STRUCT만 허용한다. 이는 PARSER가 제거한 모호함의 재유입을 차단한다.
-
-After PHASE -1, no agent may reference the original natural language. Only the previous agent's OUT fields or PARSER STRUCT are valid inputs. This prevents re-introduction of ambiguity that PARSER eliminated.
-
-### 4. VERIFIER — 경계 침범 검증 / Boundary Violation Detection
-
-기존 검증 레이어가 품질만 확인한다면, 이 하네스의 VERIFIER는 **경계 침범**과 **RAW 재참조**를 추가로 검증한다.
-
-Unlike typical quality gates, this VERIFIER additionally checks for **scope boundary violations** and **unauthorized RAW references**.
+한 번에 끝나는 단순 질문보다 **단계가 나뉘는 작업**에서 효과가 크다.  
+Works best on **multi-step tasks**, not one-shot simple queries.
 
 ---
 
@@ -82,44 +141,40 @@ curl -o CLAUDE.md https://raw.githubusercontent.com/ERUTCEL/dynamic-harness-syst
 
 그 다음 / Then:
 
-1. Claude Code를 실행한다 / Run Claude Code
-2. 자연어로 태스크를 입력한다 / Enter your task in natural language
-3. 하네스가 자동으로 PHASE -1 → 3을 실행한다 / The harness runs PHASE -1 through 3 automatically
+1. Claude Code 실행 / Run Claude Code
+2. 평소처럼 자연어로 태스크 입력 / Enter your task in natural language as usual
+3. 하네스가 자동으로 최적 경로 선택 후 실행 / The harness selects the optimal path and runs
+
+별도 설정 없음. 파일 하나로 작동한다.  
+No extra configuration. One file, plug and play.
 
 ---
 
-## 기존 하네스와의 비교 / Comparison with Existing Harnesses
+## 설계 원칙 / Design Principles
 
-| | 기존 / Existing | 이 하네스 / This Harness |
-|---|---|---|
-| 자연어 처리 | 그대로 에이전트에 전달 | PARSER가 구조화 후 전달 |
-| NL Handling | Passed directly to agents | Structured by PARSER first |
-| 역할 정의 | 역할명 또는 패턴 선택 | WHO / WHAT / OUT 3분할 강제 |
-| Role Definition | Name or pattern selection | Mandatory WHO / WHAT / OUT split |
-| 에이전트 간 통신 | 자연어 요약 | 필드:값 구조화 형식 |
-| Inter-agent Comms | Natural language summary | Field:value structured format |
-| 검증 | 품질 / 코드 게이팅 | 품질 + 경계 침범 + RAW 재참조 |
-| Verification | Quality / code gating | Quality + boundary + RAW re-reference |
-| 하네스 구조 | 미리 정의된 패턴 선택 | 태스크별 동적 생성 |
-| Harness Structure | Pre-defined pattern selection | Dynamically generated per task |
+| 결정 / Decision | 이유 / Reason |
+|---|---|
+| PARSER를 앞에 둔다 / PARSER runs first | 자연어는 에이전트마다 다르게 해석된다. 한 번만 해석하고 이후엔 구조화된 값만 쓴다 / Natural language is interpreted differently by each agent. Parse once, use structured values after |
+| OUT을 필드:값으로 강제 / OUT forced to field:value | 자연어 요약은 전달 과정에서 의미가 손실된다. 숫자와 열거형은 손실이 없다 / Prose summaries lose meaning in transit. Numbers and enums don't |
+| "판단하지 않을 것" 명시 / Must-NOT declared | 경계가 없으면 에이전트가 서로 침범하거나 아무도 안 하는 영역이 생긴다 / Without boundaries, agents overlap or leave blind spots |
+| VERIFIER 조건부 스킵 / VERIFIER conditionally skipped | 단일 실행 태스크에 검증 레이어는 토큰 낭비다 / A verification layer on single-agent tasks wastes tokens |
 
 ---
 
-## 파일 / Files
+## 관련 레포 / Related
+
+- [revfactory/harness](https://github.com/revfactory/harness) — 패턴 기반 하네스 팩토리 / Pattern-based harness factory
+- [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) — 하네스 엔지니어링 개념 / Harness engineering concepts
+
+---
+
+## 파일 구성 / Files
 
 ```
 .
 ├── CLAUDE.md   — 하네스 전체 정의 / Full harness definition
 └── README.md   — 이 파일 / This file
 ```
-
----
-
-## 관련 레포 / Related Repos
-
-- [revfactory/harness](https://github.com/revfactory/harness) — 패턴 기반 하네스 팩토리 / Pattern-based harness factory
-- [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) — 하네스 엔지니어링 개념 / Harness engineering concepts
-- [dralgorhythm/claude-agentic-framework](https://github.com/dralgorhythm/claude-agentic-framework) — 병렬 에이전트 프레임워크 / Parallel agent framework
 
 ---
 

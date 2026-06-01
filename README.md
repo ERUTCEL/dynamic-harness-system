@@ -1,8 +1,8 @@
 # Dynamic Harness System (동적 하네스 시스템)
 
-> A CLAUDE.md-based multi-agent harness that converts natural language into structured representations before execution — reducing ambiguity loss and inter-agent boundary violations.
+> A CLAUDE.md-based multi-agent harness that converts natural language into structured representations before execution — reducing ambiguity loss and inter-agent boundary violations. Supports conditional PARSER skip and VERIFIER skip for token efficiency.
 
-> 자연어를 구조화 표현으로 변환한 뒤 실행하는 CLAUDE.md 기반 멀티에이전트 하네스. 모호성 손실과 에이전트 간 경계 침범을 줄이는 것이 핵심 목표.
+> 자연어를 구조화 표현으로 변환한 뒤 실행하는 CLAUDE.md 기반 멀티에이전트 하네스. 모호성 손실과 에이전트 간 경계 침범을 줄이는 것이 핵심 목표. PARSER 조건부 스킵과 VERIFIER 스킵으로 토큰 효율화 지원.
 
 ---
 
@@ -25,13 +25,13 @@ Most multi-agent harnesses share two failure modes:
 ```
 자연어 입력 / Natural Language Input
     ↓
-PHASE -1 : PARSER       — 자연어 → 구조화 표현 / NL → Structured Representation
+PHASE -1 : PARSER       — 자연어 → 구조화 표현 (조건부 스킵) / NL → Structured Representation (conditional skip)
     ↓
-PHASE  0 : META AGENT   — 하네스 동적 설계 / Dynamic Harness Design
+PHASE  0 : META AGENT   — 하네스 설계 + 토큰 최적화 경로 결정 / Harness Design + Token-efficient Path Selection
     ↓
-PHASE  1 : EXECUTORS    — 필드:값 통신 / Field:Value Communication Only
+PHASE  1 : EXECUTORS    — 필드:값 통신, OUT 필드 최소화 / Field:Value Only, Minimal OUT Fields
     ↓
-PHASE  2 : VERIFIER     — 경계 침범 및 계약 위반 검증 / Boundary & Contract Validation
+PHASE  2 : VERIFIER     — 분기 YES일 때만 실행 / Runs Only When Branching
     ↓
 PHASE  3 : SYNTHESIZER  — 최종 출력 / Final Output
 ```
